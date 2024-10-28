@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="chat-header">
+    <h2>
+        {% for participant in chat.participants %}
+            {% if participant.id != session.get('user_id') %}
+                {{ participant.username }}
+            {% endif %}
+        {% endfor %}
+    </h2>
+</div>
+
+<div id="messages" class="messages-container">
+    {% for message in messages %}
+        <div class="message-item {% if message.sender.id == session.get('user_id') %}sent{% else %}received{% endif %}">
+            <p class="message-content">{{ message.content }}</p>
+            <span class="message-info">{{ message.sender.username }} | {{ message.timestamp.strftime('%d.%m.%Y %H:%M') }}</span>
+        </div>
+    {% endfor %}
+</div>
+
+<!-- Форма для отправки сообщений -->
+<form id="message-form" class="message-form">
+    <input type="text" id="message-input" name="content" placeholder="Type your message here" required class="message-input">
+    <button type="submit" class="send-button">Send</button>
+</form>
+
+<!-- Подключение Socket.IO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+<script>
+    const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+    const chatId = {{ chat.id }};
+    const currentUserId = {{ session.get('user_id') }};
+
+    function scrollToBottom() {
+        const messagesContainer = document.getElementById('messages');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        scrollToBottom();
+        socket.emit('join_chat', { chat_id: chatId });
+    });
+
+    document.getElementById('message-form').onsubmit = (e) => {
+        e.preventDefault();
+        const messageContent = document.getElementById('message-input').value;
+
+        // Отправляем сообщение через сокет
+        socket.emit('send_message', {
+            chat_id: chatId,
+            message: messageContent,
+            user_id: currentUserId,
+            username: "{{ session['username'] }}" // Передаем имя пользователя из сессии
+        });
+
+        // Очищаем поле ввода
+        document.getElementById('message-input').value = '';
+        scrollToBottom();
+    };
+
+    // Получаем новое сообщение от сервера через сокет
+    socket.on('receive_message', (data) => {
+        const messageContainer = document.getElementById('messages');
+        const messageElement = document.createElement('div');
+        const isSentByCurrentUser = data.user_id === currentUserId;
+
+        // Назначаем класс 'sent' или 'received' для корректного отображения
+        messageElement.classList.add('message-item', isSentByCurrentUser ? 'sent' : 'received');
+        messageElement.innerHTML = `
+            <p class="message-content">${data.message}</p>
+            <span class="message-info">${data.username} | ${data.timestamp}</span>
+        `;
+        messageContainer.appendChild(messageElement);
+        scrollToBottom();
+    });
+</script>
+
+{% endblock %}

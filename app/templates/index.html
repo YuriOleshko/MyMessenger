@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>Chatico</h1>
+
+    {% if session.get('user_id') %}
+        <h3 class="section-title">Your Chats</h3>
+        <div class="chat-list">
+            {% for chat in chats %}
+                <div class="chat-item">
+                    <a href="{{ url_for('main.chat', chat_id=chat.id) }}">
+                        <span class="chat-username">
+                            {% for participant in chat.participants %}
+                                {% if participant.id != session.get('user_id') %}
+                                    {{ participant.username }}{% if not loop.last %} {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </span>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p>You are not logged in. Please <a href="{{ url_for('main.login') }}">login</a> or <a href="{{ url_for('main.register') }}">register</a>.</p>
+    {% endif %}
+{% endblock %}
