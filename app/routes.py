@@ -78,6 +78,34 @@ def search():
         users = User.query.filter(User.username.ilike(f'%{query}%')).all()
     return render_template('search.html', users=users, query=query)
 
+# Начало нового чата или открытие существующего с пользователем по его user_id
+@main.route('/start_chat/<int:user_id>', methods=['GET', 'POST'])
+def start_chat(user_id):
+    current_user_id = session.get('user_id')
+    if not current_user_id:
+        flash('Please log in to start a chat.', 'error')
+        return redirect(url_for('main.login'))
+
+    # Ищем пользователя, с которым нужно начать чат
+    user = User.query.get_or_404(user_id)
+    if current_user_id == user_id:
+        flash('You cannot start a chat with yourself.', 'error')
+        return redirect(url_for('main.index'))
+
+    # Проверяем, есть ли уже чат с этим пользователем
+    chat = Chat.query.filter(
+        Chat.participants.any(User.id == current_user_id),
+        Chat.participants.any(User.id == user_id)
+    ).first()
+
+    # Если чат не найден, создаём новый и добавляем пользователей в участники
+    if not chat:
+        chat = Chat(participants=[user, User.query.get(current_user_id)])
+        db.session.add(chat)
+        db.session.commit()
+
+    return redirect(url_for('main.chat', chat_id=chat.id))
+
 # Чат с проверкой прав доступа
 @main.route('/chat/<int:chat_id>', methods=['GET', 'POST'])
 def chat(chat_id):
