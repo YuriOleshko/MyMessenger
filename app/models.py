@@ -1,3 +1,4 @@
+from sqlalchemy.orm import relationship
 from app import db
 from flask_bcrypt import Bcrypt
 from datetime import datetime
@@ -23,6 +24,9 @@ class User(db.Model):
     def check_password(self, password):
         return bcrypt.check_password_hash(self.password_hash, password)
 
+    bot_messages = db.relationship('ChatWithBotMessage', back_populates='user')
+
+
 class Chat(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     participants = db.relationship('User', secondary=chat_participants, backref='chats')
@@ -36,3 +40,13 @@ class Message(db.Model):
 
     sender = db.relationship('User', backref='sent_messages')
 
+
+class ChatWithBotMessage(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    bot_response = db.Column(db.Text, nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Связь с пользователем
+    user = relationship('User', back_populates='bot_messages', foreign_keys=[user_id])

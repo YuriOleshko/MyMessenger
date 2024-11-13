@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="chat-header">
+    <h2>ChatGPT</h2>
+</div>
+
+<div id="messages" class="messages-container">
+    {% for message in messages %}
+        <!-- Отображаем сообщение пользователя -->
+        <div class="message-item sent">
+            <p class="message-content">
+                {{ message.message }}
+            </p>
+            <span class="message-info">
+                You | {{ message.timestamp.strftime('%d.%m.%Y %H:%M') }}
+            </span>
+        </div>
+
+        <!-- Отображаем ответ бота, если он существует -->
+        {% if message.bot_response %}
+            <div class="message-item received">
+                <p class="message-content">
+                    {{ message.bot_response }}
+                </p>
+                <span class="message-info">
+                    ChatGPT | {{ message.timestamp.strftime('%d.%m.%Y %H:%M') }}
+                </span>
+            </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<!-- Форма для отправки сообщений -->
+<form id="message-form" class="message-form">
+    <input type="text" id="message-input" name="content" placeholder="Type your message here" required class="message-input">
+    <button type="submit" class="send-button">Send</button>
+</form>
+
+<!-- Подключение Socket.IO -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+<script>
+    const form = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const messagesContainer = document.getElementById('messages');
+    const socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+    const user_id = {{ session.get('user_id') }};
+
+    document.addEventListener('DOMContentLoaded', () => {
+        scrollToBottom();
+        socket.emit('join', { user_id: user_id });
+    });
+
+    // Функция добавления сообщения в контейнер
+    function addMessage(content, timestamp, sender) {
+        const newMessage = document.createElement('div');
+        newMessage.classList.add('message-item', sender === 'user' ? 'sent' : 'received');
+
+        newMessage.innerHTML = `
+            <p class="message-content">${content}</p>
+            <span class="message-info">${sender === 'user' ? 'You' : 'ChatGPT'} | ${timestamp}</span>
+        `;
+
+        messagesContainer.appendChild(newMessage);
+        scrollToBottom();
+    }
+
+    // Функция для прокрутки к последнему сообщению
+    function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Прокрутка к последнему сообщению при загрузке страницы
+    document.addEventListener("DOMContentLoaded", function() {
+        scrollToBottom();
+    });
+
+    // Форматирование даты в UTC без запятой
+    function formatTimestampToUTC(timestamp) {
+        const date = new Date(timestamp);  // Создаём дату из строки ISO 8601
+        return date.toLocaleString('ru-RU', {
+            timeZone: 'UTC',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).replace(',', '');  // Удаляем запятую
+    }
+
+    // Обработчик отправки формы
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const message = messageInput.value;
+
+        // Отправляем сообщение на сервер через сокет
+        socket.emit('send_message_bot', {
+            user_id: user_id,
+            message: message,
+            chat_type: 'bot'
+        });
+
+        // Добавляем сообщение пользователя в чат немедленно с текущим UTC временем
+        const utcTimestamp = new Date().toISOString();
+        addMessage(message, formatTimestampToUTC(utcTimestamp), 'user');
+
+        // Очищаем поле ввода
+        messageInput.value = '';
+    });
+
+    // Слушаем событие 'receive_message_bot' от сервера
+    socket.on('receive_message_bot', function(data) {
+        // Преобразуем серверный timestamp (ISO 8601) в формат UTC
+        const messageTimestamp = formatTimestampToUTC(data.timestamp);
+        const sender = data.user_id === user_id ? 'user' : 'bot';
+        addMessage(data.message, messageTimestamp, sender);
+    });
+</script>
+
+{% endblock %}

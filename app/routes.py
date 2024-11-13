@@ -1,8 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from app import db, socketio
-from app.models import User, Chat, Message
+from app.models import User, Chat, Message, ChatWithBotMessage
 from datetime import datetime
 from flask_socketio import emit, join_room
+from openai import OpenAI
+from config import Config
+
 
 main = Blueprint('main', __name__)
 
@@ -86,19 +89,16 @@ def start_chat(user_id):
         flash('Please log in to start a chat.', 'error')
         return redirect(url_for('main.login'))
 
-    # Ищем пользователя, с которым нужно начать чат
     user = User.query.get_or_404(user_id)
     if current_user_id == user_id:
         flash('You cannot start a chat with yourself.', 'error')
         return redirect(url_for('main.index'))
 
-    # Проверяем, есть ли уже чат с этим пользователем
     chat = Chat.query.filter(
         Chat.participants.any(User.id == current_user_id),
         Chat.participants.any(User.id == user_id)
     ).first()
 
-    # Если чат не найден, создаём новый и добавляем пользователей в участники
     if not chat:
         chat = Chat(participants=[user, User.query.get(current_user_id)])
         db.session.add(chat)
@@ -116,7 +116,6 @@ def chat(chat_id):
 
     chat = Chat.query.get_or_404(chat_id)
 
-    # Проверка прав доступа к чату
     user = User.query.get(user_id)
     if user not in chat.participants:
         flash('You do not have access to this chat.', 'error')
@@ -134,18 +133,15 @@ def send_message(chat_id):
     if user_id and content:
         chat = Chat.query.get_or_404(chat_id)
 
-        # Проверка прав доступа к чату перед отправкой сообщения
         user = User.query.get(user_id)
         if user not in chat.participants:
             flash('You do not have access to send messages in this chat.', 'error')
             return redirect(url_for('main.index'))
 
-        # Создаем новое сообщение и сохраняем его в базе данных
         message = Message(chat_id=chat_id, sender_id=user_id, content=content, timestamp=datetime.utcnow())
         db.session.add(message)
         db.session.commit()
 
-        # Отправляем сообщение в комнату через сокет
         socketio.emit(
             'receive_message',
             {
@@ -174,21 +170,86 @@ def handle_send_message(data):
 
     chat = Chat.query.get_or_404(chat_id)
 
-    # Проверка прав доступа к чату
     user = User.query.get(user_id)
     if user not in chat.participants:
         emit('access_denied', {'error': 'Access to this chat is denied.'})
         return
 
-    # Сохраняем сообщение в базе данных
     message = Message(chat_id=chat_id, sender_id=user_id, content=message_content, timestamp=datetime.utcnow())
     db.session.add(message)
     db.session.commit()
 
-    # Отправляем сообщение обратно в комнату чата
     socketio.emit('receive_message', {
         'message': message_content,
         'username': user.username,
         'timestamp': message.timestamp.strftime('%d.%m.%Y %H:%M'),
         'user_id': user_id
     }, room=f'chat_{chat_id}')
+
+# Чат пользователя с ботом ChatGPT
+@main.route('/chatgpt', methods=['GET', 'POST'])
+def chatgpt():
+    user_id = session.get('user_id')
+    if not user_id:
+        flash('Please log in to access the chat.', 'error')
+        return redirect(url_for('main.login'))
+
+    messages = ChatWithBotMessage.query.filter_by(user_id=user_id).order_by(ChatWithBotMessage.timestamp).all()
+
+    if request.method == 'POST':
+        user_message = request.json.get('message')
+
+        bot_response = get_bot_response(user_message)
+
+        new_message = ChatWithBotMessage(user_id=user_id, message=user_message, bot_response=bot_response,
+                                         timestamp=datetime.utcnow())
+        db.session.add(new_message)
+        db.session.commit()
+
+        return jsonify({"response": bot_response})
+
+    return render_template('chatgpt.html', messages=messages)
+
+# Получения ответа от чат-бота на основе модели GPT
+def get_bot_response(user_message):
+    client = OpenAI(
+        api_key=Config.OPENAI_API_KEY
+    )
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": user_message}]
+    )
+    return response.choices[0].message.content
+
+# Присоединяем пользователя к его комнате c чат-ботом
+@socketio.on('join')
+def handle_join(data):
+    user_id = data['user_id']
+    join_room(f'user_{user_id}')
+
+# SocketIO обработчик для отправки сообщений ChatGPT
+@socketio.on('send_message_bot')
+def handle_send_message_bot(data):
+    # Получаем данные из сообщения
+    user_id = data['user_id']
+    message_content = data['message']
+    chat_type = data['chat_type']  # 'bot'
+
+    if chat_type == 'bot':
+        bot_response = get_bot_response(message_content)
+
+        new_message = ChatWithBotMessage(
+            user_id=user_id,
+            message=message_content,
+            bot_response=bot_response,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(new_message)
+        db.session.commit()
+
+        emit('receive_message_bot', {
+            'message': bot_response,
+            'timestamp': datetime.utcnow().isoformat() + "Z",
+            'user_id': 'ChatGPT'
+        }, room=f'user_{user_id}')

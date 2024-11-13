@@ -86,18 +86,25 @@ input[type="search"]:focus {
     outline: none;
 }
 
-button {
+/* Стиль для всех кнопок */
+button,
+.send-button,
+.message-form button,
+form button {
     padding: 12px 25px;
     background-color: #3b82f6;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     color: white;
     cursor: pointer;
     font-size: 16px;
     transition: background 0.3s;
 }
 
-button:hover {
+button:hover,
+.send-button:hover,
+.message-form button:hover,
+form button:hover {
     background-color: #2563eb;
 }
 
@@ -129,40 +136,26 @@ ul {
     background-color: #f3f4f6;
 }
 
-/* Поле ввода и кнопка для чатов */
-#message-input {
+/* Поле ввода для чатов */
+#message-input,
+.message-input {
     width: calc(100% - 70px);
-    padding: 10px;
+    padding: 12px;
     border: 1px solid #d1d5db;
-    border-radius: 6px;
+    border-radius: 8px;
     margin-right: 10px;
-    display: inline-block;
 }
 
-#message-input:focus {
+#message-input:focus,
+.message-input:focus {
     border-color: #3b82f6;
     outline: none;
-}
-
-button {
-    width: 60px;
-    padding: 10px;
-    background-color: #3b82f6;
-    border: none;
-    border-radius: 6px;
-    color: white;
-    cursor: pointer;
-}
-
-button:hover {
-    background-color: #2563eb;
 }
 
 /* Уведомления и ошибки */
 ul li {
     color: red;
     font-weight: bold;
-    list-style-type: none;
 }
 
 /* Поиск */
@@ -173,12 +166,6 @@ form input[type="search"] {
     margin-right: 10px;
     border-radius: 6px;
     border: 1px solid #d1d5db;
-}
-
-form button {
-    width: 80px;
-    padding: 10px;
-    border-radius: 6px;
 }
 
 /* Ссылки */
@@ -211,11 +198,13 @@ p {
         margin: 8px 0;
     }
 
-    #message-input {
+    #message-input,
+    .message-input {
         width: 65%;
     }
 
-    button {
+    button,
+    .send-button {
         width: 90px;
     }
 }
@@ -233,7 +222,7 @@ h1 {
 .section-title {
     font-size: 20px;
     color: #333;
-    text-align: left;
+    text-align: center;
     margin-bottom: 15px;
 }
 
@@ -247,6 +236,7 @@ h1 {
 
 /* Элемент чата */
 .chat-item {
+    text-align: center;
     padding: 15px;
     border-radius: 8px;
     background-color: #ffffff;
@@ -258,68 +248,44 @@ h1 {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-/* Ссылка на чат */
 .chat-item a {
     text-decoration: none;
-    color: #333;
+    color: #3b82f6;
     font-size: 18px;
 }
 
-.chat-username {
-    font-weight: bold;
-    color: #3b82f6;
-}
 
-.chat-item a:hover .chat-username {
-    color: #2563eb;
-}
-
-/* Адаптивные стили */
-@media (max-width: 768px) {
-    h1 {
-        font-size: 24px;
-    }
-    .section-title {
-        font-size: 18px;
-    }
-    .chat-item {
-        padding: 10px;
-    }
-    .chat-item a {
-        font-size: 16px;
-    }
-}
 
 /* Заголовок чата */
 .chat-header {
+    text-decoration-color: #333333;
     text-align: center;
     padding: 10px;
     margin-bottom: 20px;
-    background-color: #0077cc; /* Синий цвет */
-    color: #fff;
+    background-color: #0077cc;
     border-radius: 8px;
 }
 
 .chat-header h2 {
+    color: whitesmoke;
     font-size: 24px;
-    color: #fff;
     margin: 0;
 }
 
 /* Контейнер для сообщений */
 .messages-container {
-    max-height: 400px; /* Ограничиваем высоту контейнера */
-    overflow-y: auto;  /* Включаем прокрутку по вертикали */
+    max-height: 400px;
+    overflow-y: auto;
     padding: 15px;
-    background-color: #eef5ff; /* Светло-синий фон */
+    background-color: #eef5ff;
     border: 1px solid #0077cc;
     border-radius: 8px;
     margin-bottom: 20px;
     display: flex;
-    flex-direction: column; /* Изменяем на column */
+    flex-direction: column;
 }
 
-/* Сообщение */
+/* Сообщения */
 .message-item {
     padding: 10px;
     margin: 10px 0;
@@ -329,55 +295,19 @@ h1 {
     word-wrap: break-word;
 }
 
-/* Сообщения отправителя */
 .message-item.sent {
-    background-color: #cce0ff; /* Светлый синий для отправленных сообщений */
+    background-color: #cce0ff;
     align-self: flex-end;
     margin-left: auto;
 }
 
-/* Сообщения получателя */
 .message-item.received {
     background-color: #ffffff;
     align-self: flex-start;
     margin-right: auto;
 }
 
-/* Поле ввода и кнопка отправки */
-.message-form {
-    display: flex;
-    gap: 10px;
-    padding: 10px;
-    border-top: 1px solid #ddd;
-}
-
-.message-input {
-    flex: 1;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #0077cc;
-}
-
-.message-input:focus {
-    outline: none;
-    border-color: #005b99;
-}
-
-.send-button {
-    padding: 10px 20px;
-    background-color: #0077cc; /* Основной синий цвет */
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.send-button:hover {
-    background-color: #005b99; /* Более темный синий при наведении */
-}
-
-/* При добавлении нового сообщения */
+/* Прокрутка контейнера сообщений */
 .messages-container::-webkit-scrollbar {
-    display: none; /* Скрыть полосу прокрутки, если нужно */
+    display: none;
 }

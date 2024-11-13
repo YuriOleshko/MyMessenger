@@ -5,19 +5,22 @@
 
     {% if session.get('user_id') %}
         <h3 class="section-title">Your Chats</h3>
+
+        <!-- Кнопка 'ChatGPT' -->
+        <div class="chat-list">
+            <a href="{{ url_for('main.chatgpt') }}" class="chat-item">ChatGPT</a>
+        </div>
+
+        <!-- Список чатов -->
         <div class="chat-list">
             {% for chat in chats %}
-                <div class="chat-item">
-                    <a href="{{ url_for('main.chat', chat_id=chat.id) }}">
-                        <span class="chat-username">
-                            {% for participant in chat.participants %}
-                                {% if participant.id != session.get('user_id') %}
-                                    {{ participant.username }}{% if not loop.last %} {% endif %}
-                                {% endif %}
-                            {% endfor %}
-                        </span>
+                    <a href="{{ url_for('main.chat', chat_id=chat.id) }}" class="chat-item">
+                        {% for participant in chat.participants %}
+                            {% if participant.id != session.get('user_id') %}
+                                {{ participant.username }}{% if not loop.last %} {% endif %}
+                            {% endif %}
+                        {% endfor %}
                     </a>
-                </div>
             {% endfor %}
         </div>
     {% else %}
